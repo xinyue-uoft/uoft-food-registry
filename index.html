@@ -15,21 +15,22 @@
 <body>
   <h1>🍜 约饭报名</h1>
 
-  <!-- 1. 报名表单（这里嵌入你的 Google Form） -->
+  <!-- 1. 报名表单（嵌入你的 Google Form） -->
   <h2>填写报名表</h2>
   <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSd7ZIaZY3jlKepyQcsks99s9GZoZwtC813_PMQiHvoyVb9AFQ/viewform?embedded=true"
           width="100%" height="600"></iframe>
 
   <!-- 2. 报名结果表格 -->
-  <h2>当前报名名单</h2>
+  <h2>当前报名情况</h2>
   <table id="signup-table">
     <thead>
       <tr>
-        <th>时间</th>
-        <th>名字</th>
-        <th>地点</th>
-        <th>人数</th>
-        <th>备注</th>
+        <th>时间戳</th>
+        <th>去哪吃？</th>
+        <th>吃什么？</th>
+        <th>是什么时候？</th>
+        <th>人数上限</th>
+        <th>忌口/其他</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -37,12 +38,11 @@
 
   <script>
     async function loadData() {
-      // ⚠️ 这里要换成你 Google Sheet 发布后的 CSV 链接
+      // ⚠️ 换成你表单关联的 Google Sheet 的 CSV 发布链接
       const url = "https://docs.google.com/spreadsheets/d/1hHyebhKYPIfgjD9qPOS5h0iJp3ey8hQA6hVc6dBhzyI/edit?usp=sharing";
       let res = await fetch(url);
       let text = await res.text();
 
-      // 解析 CSV
       let rows = text.trim().split("\n").map(r => r.split(","));
       let data = rows.slice(1); // 去掉表头
 
@@ -52,18 +52,18 @@
         let tr = document.createElement("tr");
         tr.innerHTML = `
           <td>${row[0]}</td>   <!-- 时间戳 -->
-          <td>${row[1]}</td>   <!-- 名字 -->
-          <td>${row[2]}</td>   <!-- 地点 -->
-          <td>${row[3]}</td>   <!-- 人数 -->
-          <td>${row[4] || ""}</td> <!-- 备注 -->
+          <td>${row[1]}</td>   <!-- 去哪吃 -->
+          <td>${row[2]}</td>   <!-- 吃什么 -->
+          <td>${row[3]}</td>   <!-- 什么时候 -->
+          <td>${row[4]}</td>   <!-- 人数上限 -->
+          <td>${row[5] || ""}</td> <!-- 忌口/其他 -->
         `;
         tbody.appendChild(tr);
       });
     }
 
     loadData();
-    // 每 30 秒刷新一次
-    setInterval(loadData, 30000);
+    setInterval(loadData, 30000); // 每 30 秒刷新一次
   </script>
 </body>
 </html>
