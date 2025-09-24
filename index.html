@@ -15,13 +15,13 @@
 <body>
   <h1>🍜 约饭报名 Beta v0.0.2版</h1>
 
-  <!-- 1) 你的 Google Form（保持不变） -->
+  <!-- 1) Google Form -->
   <h2>填写报名表</h2>
   <iframe
     src="https://docs.google.com/forms/d/e/1FAIpQLSd7ZIaZY3jlKepyQcsks99s9GZoZwtC813_PMQiHvoyVb9AFQ/viewform?embedded=true">
   </iframe>
 
-  <!-- 2) 报名结果（自动从 Sheet 拉 JSON 并渲染） -->
+  <!-- 2) Results -->
   <h2>当前报名情况</h2>
   <table id="signup-table">
     <thead><tr id="signup-head"></tr></thead>
@@ -29,12 +29,10 @@
   </table>
 
   <script>
-    // ✦✦✦ 把下面 SHEET_ID 和 SHEET_NAME 改成你的 ✦✦✦
-    // 1) SHEET_ID：表格链接中 /d/ 和 /edit 之间的那串 ID
+    // ✦✦✦ Set these to your Sheet info ✦✦✦
     const SHEET_ID   = "1hHyebhKYPIfgjD9qPOS5h0iJp3ey8hQA6hVc6dBhzyI";
     const SHEET_NAME = "default";
 
-    // 使用 Google Visualization API：返回 JSON（被函数包裹一下，需要手动剥壳）
     const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
                      `?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&tq=${encodeURIComponent("select *")}`;
 
@@ -47,26 +45,32 @@
       const resp = await fetch(GVIZ_URL);
       const txt  = await resp.text();
 
-      // 去掉前后的函数包装，只保留 JSON
       const json = JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
 
       // 表头
       const cols = json.table.cols.map(c => c.label || "").filter(Boolean);
       head.innerHTML = cols.map(h => `<th>${h}</th>`).join("");
 
-      // 数据行（优先用 c.f 的格式化值；没有就用 c.v）
+      // 数据行
       const rows = json.table.rows.map(r => r.c.map(c => (c && (c.f ?? c.v)) ?? ""));
-
-      // 可选：按时间戳倒序（如果第一列是 Timestamp）
-      rows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+      rows.sort((a, b) => new Date(b[0]) - new Date(a[0])); // sort by timestamp desc
 
       body.innerHTML = rows.map(r =>
-        `<tr>${r.map(v => `<td>${String(v).replace(/</g,"&lt;").replace(/>/g,"&gt;")}</td>`).join("")}</tr>`
+        `<tr>${
+          r.map(v => {
+            let val = String(v).trim();
+            if (/^https?:\/\//i.test(val)) {
+              return `<td><a href="${val}" target="_blank" rel="noopener noreferrer">${val}</a></td>`;
+            } else {
+              return `<td>${val.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</td>`;
+            }
+          }).join("")
+        }</tr>`
       ).join("");
     }
 
     loadData();
-    setInterval(loadData, 30000); // 每 30 秒自动刷新一次
+    setInterval(loadData, 30000);
   </script>
 </body>
 </html>
