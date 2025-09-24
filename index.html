@@ -1,69 +1,72 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <title>约饭报名 Beta v0.0.1 测试版</title>
+  <meta charset="UTF-8" />
+  <title>约饭报名</title>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    h1 { color: #e91e63; }
-    iframe { border: none; margin-top: 10px; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 24px; }
+    h1 { color: #e91e63; margin-bottom: 8px; }
+    iframe { border: none; width: 100%; height: 600px; }
     table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #f5f5f5; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background: #fafafa; position: sticky; top: 0; }
   </style>
 </head>
 <body>
-  <h1>🍜 约饭报名 Beta v0.0.1 测试版</h1>
+  <h1>🍜 约饭报名 Beta v0.0.2版</h1>
 
-  <!-- 1. 报名表单（嵌入你的 Google Form） -->
+  <!-- 1) 你的 Google Form（保持不变） -->
   <h2>填写报名表</h2>
-  <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSd7ZIaZY3jlKepyQcsks99s9GZoZwtC813_PMQiHvoyVb9AFQ/viewform?embedded=true"
-          width="100%" height="600"></iframe>
+  <iframe
+    src="https://docs.google.com/forms/d/e/1FAIpQLSd7ZIaZY3jlKepyQcsks99s9GZoZwtC813_PMQiHvoyVb9AFQ/viewform?embedded=true">
+  </iframe>
 
-  <!-- 2. 报名结果表格 -->
+  <!-- 2) 报名结果（自动从 Sheet 拉 JSON 并渲染） -->
   <h2>当前报名情况</h2>
   <table id="signup-table">
-    <thead>
-      <tr>
-        <th>Timestamp</th>
-        <th>去哪吃？</th>
-        <th>吃什么？</th>
-        <th>是什么时候？</th>
-        <th>想要找多少个人呢？</th>
-        <th>有什么忌口/其他要求吗？</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
+    <thead><tr id="signup-head"></tr></thead>
+    <tbody id="signup-body"></tbody>
   </table>
 
   <script>
+    // ✦✦✦ 把下面 SHEET_ID 和 SHEET_NAME 改成你的 ✦✦✦
+    // 1) SHEET_ID：表格链接中 /d/ 和 /edit 之间的那串 ID
+    const SHEET_ID   = "1hHyebhKYPIfgjD9qPOS5h0iJp3ey8hQA6hVc6dBhzyI";
+    const SHEET_NAME = "default";
+
+    // 使用 Google Visualization API：返回 JSON（被函数包裹一下，需要手动剥壳）
+    const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
+                     `?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}&tq=${encodeURIComponent("select *")}`;
+
     async function loadData() {
-      // ⚠️ 换成你表单关联的 Google Sheet 的 CSV 发布链接
-      const url = "https://docs.google.com/spreadsheets/d/1hHyebhKYPIfgjD9qPOS5h0iJp3ey8hQA6hVc6dBhzyI/edit?usp=sharing";
-      let res = await fetch(url);
-      let text = await res.text();
+      const head = document.getElementById("signup-head");
+      const body = document.getElementById("signup-body");
+      head.innerHTML = "<th>加载中……</th>";
+      body.innerHTML = "";
 
-      let rows = text.trim().split("\n").map(r => r.split(","));
-      let data = rows.slice(1); // 去掉表头
+      const resp = await fetch(GVIZ_URL);
+      const txt  = await resp.text();
 
-      let tbody = document.querySelector("#signup-table tbody");
-      tbody.innerHTML = "";
-      data.forEach(row => {
-        let tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td>${row[0]}</td>   <!-- 时间戳 -->
-          <td>${row[1]}</td>   <!-- 去哪吃 -->
-          <td>${row[2]}</td>   <!-- 吃什么 -->
-          <td>${row[3]}</td>   <!-- 什么时候 -->
-          <td>${row[4]}</td>   <!-- 人数上限 -->
-          <td>${row[5] || ""}</td> <!-- 忌口/其他 -->
-        `;
-        tbody.appendChild(tr);
-      });
+      // 去掉前后的函数包装，只保留 JSON
+      const json = JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+
+      // 表头
+      const cols = json.table.cols.map(c => c.label || "").filter(Boolean);
+      head.innerHTML = cols.map(h => `<th>${h}</th>`).join("");
+
+      // 数据行（优先用 c.f 的格式化值；没有就用 c.v）
+      const rows = json.table.rows.map(r => r.c.map(c => (c && (c.f ?? c.v)) ?? ""));
+
+      // 可选：按时间戳倒序（如果第一列是 Timestamp）
+      rows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+
+      body.innerHTML = rows.map(r =>
+        `<tr>${r.map(v => `<td>${String(v).replace(/</g,"&lt;").replace(/>/g,"&gt;")}</td>`).join("")}</tr>`
+      ).join("");
     }
 
     loadData();
-    setInterval(loadData, 30000); // 每 30 秒刷新一次
+    setInterval(loadData, 30000); // 每 30 秒自动刷新一次
   </script>
 </body>
 </html>
